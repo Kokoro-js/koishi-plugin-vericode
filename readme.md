@@ -13,3 +13,12 @@ Koishi plugin generates verification code image with canvas for when new member 
  > 发送图片和文字  
  > 等待新成员回复（直接发送图片内容）  
  > 验证不成功/超时则禁言15天  
+
+### 效果
+[![Htf2oEQ.md.png](https://iili.io/Htf2oEQ.md.png)](https://freeimage.host/i/Htf2oEQ)
+
+ ## 鸣谢
+
+ 大佬 [ahdg](https://github.com/ahdg6)(直接把饭喂我嘴里了)  
+ 生成验证码部分 参考了开源库 [canvas-verification-code](https://github.com/levblanc/canvas-verification-code)
+ 以及开发群的各位佬

@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-vericode",
   "description": "Koishi plugin generates verification code image with canvas for when new member joins",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
