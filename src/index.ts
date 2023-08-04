@@ -18,12 +18,43 @@ export const Config: Schema<Config> = Schema.object({
   groups: Schema.array(String).role('table').description("启用的群组ID"),
 }).description("VeriCode");
 
+// Function to add random noise dots to the canvas
+const addNoiseDots = (context, count) => {
+  const width = context.canvas.width;
+  const height = context.canvas.height;
+  for (let i = 0; i < count; i++) {
+    const x = randomInt(0, width);
+    const y = randomInt(0, height);
+    context.beginPath();
+    context.arc(x, y, 1, 0, 2 * Math.PI);
+    context.fillStyle = randomColor(1, 100);
+    context.fill();
+  }
+};
+
+// Function to add random noise lines to the canvas
+const addNoiseLines = (context, count) => {
+  const width = context.canvas.width;
+  const height = context.canvas.height;
+  for (let i = 0; i < count; i++) {
+    const x1 = randomInt(0, width);
+    const y1 = randomInt(0, height);
+    const x2 = randomInt(0, width);
+    const y2 = randomInt(0, height);
+    context.beginPath();
+    context.moveTo(x1, y1);
+    context.lineTo(x2, y2);
+    context.strokeStyle = randomColor(1, 100);
+    context.stroke();
+  }
+};
+
 export function apply(ctx: Context, config: Config, bot: Bot) {
+  // ctx.command('vcode', { authority: 0 }).action(async ({ session }, server) => {
   ctx.on("guild-member-added", async (session) => {
     if (!config.groups.includes(session.guildId)) return;
     const canvas = ctx.canvas.createCanvas(config.width, config.height);
     const context = canvas.getContext("2d");
-
     // define number and letters for generating the code
     // some of numbers and letters may look alike in sans-serif font
     // they are:
@@ -86,6 +117,8 @@ export function apply(ctx: Context, config: Config, bot: Bot) {
       context.translate(transX, transY);
       context.scale(scaleX, scaleY);
       context.rotate(deg * rotate);
+      addNoiseDots(context, config.width * config.height * 0.008); // Add 0.8% of total pixels as noise dots
+      addNoiseLines(context, config.width + config.height); // Add lines equal to the width + height of the canvas
 
       // fill the char
       context.fillText(targetChar, 0, 0);
@@ -97,7 +130,7 @@ export function apply(ctx: Context, config: Config, bot: Bot) {
     }
     await session.send(`欢迎入群，请在 5 分钟内回答图中的验证码`)
     session.send(h.image(context.canvas.toBuffer('image/png'), 'image/png'));
-    const code = await session.prompt(30000);
+    const code = await session.prompt(300000);
     let muteTime = 15 * 24 * 60 * 60;
     if (!code) {
       session.send('未输入验证码，已取消验证。请联系群主或管理员进行手动验证');
@@ -107,6 +140,10 @@ export function apply(ctx: Context, config: Config, bot: Bot) {
     const codeLower = code.toLowerCase();
     if (code === codeText || codeLower === codeText.toLowerCase()) {
       return `验证成功，欢迎入群`
+    } else {
+      session.send('验证码错误，已取消验证。请联系群主或管理员进行手动验证');
+      await bot.internal.setGroupBanAsync(session.guildId, session.userId, muteTime)
+      return;
     }
   });
 }
