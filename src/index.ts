@@ -1,4 +1,4 @@
-import { Context, h, Schema } from "koishi";
+import { Bot, Context, h, Schema } from "koishi";
 import {} from "koishi-plugin-skia-canvas";
 export const name = "vericode";
 
@@ -7,17 +7,20 @@ export interface Config {
   codeLen: number;
   width: number;
   height: number;
+  groups: Array<string>;
 }
 
 export const Config: Schema<Config> = Schema.object({
-  type: Schema.union(["default", "number", "letter"]).default("default"),
-  codeLen: Schema.number().default(4),
-  width: Schema.number().default(200),
-  height: Schema.number().default(200),
-});
+  type: Schema.union(["default", "number", "letter"]).default("default").description("验证码类型"),
+  codeLen: Schema.number().default(4).description("验证码字符数量"),
+  width: Schema.number().default(200).description("验证码图片宽度"),
+  height: Schema.number().default(40).description("验证码图片高度"),
+  groups: Schema.array(String).role('table').description("启用的群组ID"),
+}).description("VeriCode");
 
-export function apply(ctx: Context, config: Config) {
-  ctx.on("guild-member-added", async (member) => {
+export function apply(ctx: Context, config: Config, bot: Bot) {
+  ctx.on("guild-member-added", async (session) => {
+    if (!config.groups.includes(session.guildId)) return;
     const canvas = ctx.canvas.createCanvas(config.width, config.height);
     const context = canvas.getContext("2d");
 
@@ -53,7 +56,6 @@ export function apply(ctx: Context, config: Config) {
     context.fillRect(0, 0, config.width, config.height);
     // reset alpha value for text
     context.globalAlpha = 1;
-
     // generation code chars
     for (let i = 0; i < config.codeLen; i++) {
       // randomly pick a character
@@ -93,8 +95,19 @@ export function apply(ctx: Context, config: Config) {
       // save the char into string
       codeText += targetChar;
     }
-
-    return h.image(context.canvas.toBuffer('image/png'), 'image/png');
+    await session.send(`欢迎入群，请在 5 分钟内回答图中的验证码`)
+    session.send(h.image(context.canvas.toBuffer('image/png'), 'image/png'));
+    const code = await session.prompt(30000);
+    let muteTime = 15 * 24 * 60 * 60;
+    if (!code) {
+      session.send('未输入验证码，已取消验证。请联系群主或管理员进行手动验证');
+      await bot.internal.setGroupBanAsync(session.guildId, session.userId, muteTime)
+      return;
+    }
+    const codeLower = code.toLowerCase();
+    if (code === codeText || codeLower === codeText.toLowerCase()) {
+      return `验证成功，欢迎入群`
+    }
   });
 }
 
