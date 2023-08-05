@@ -15,7 +15,13 @@ Koishi plugin generates verification code image with canvas for when new member 
  > 验证不成功/超时则禁言15天  
 
 ### 效果
-[![Htf2oEQ.md.png](https://iili.io/Htf2oEQ.md.png)](https://freeimage.host/i/Htf2oEQ)
+![HtoyWb9.md.png](https://iili.io/HtoyWb9.md.png)
+
+### 功能
+
+ > 支持调整验证码图片大小
+ > 支持调整验证码干扰程度
+ > 支持选择指定的群组开放验证码功能
 
  ## 鸣谢
 

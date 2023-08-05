@@ -7,7 +7,8 @@ export interface Config {
   codeLen: number;
   width: number;
   height: number;
-  groups: Array<string>;
+  noise: number;
+  groups: string[];
 }
 
 export const Config: Schema<Config> = Schema.object({
@@ -15,7 +16,8 @@ export const Config: Schema<Config> = Schema.object({
   codeLen: Schema.number().default(4).description("验证码字符数量"),
   width: Schema.number().default(200).description("验证码图片宽度"),
   height: Schema.number().default(40).description("验证码图片高度"),
-  groups: Schema.array(String).role('table').description("启用的群组ID"),
+  noise: Schema.number().default(8).min(0).max(100).description("验证码干扰级别(最高100，0为禁用)"),
+  groups: Schema.array(Schema.string()).role('table').description("启用的群组ID"),
 }).description("VeriCode");
 
 // Function to add random noise dots to the canvas
@@ -29,23 +31,6 @@ const addNoiseDots = (context, count) => {
     context.arc(x, y, 1, 0, 2 * Math.PI);
     context.fillStyle = randomColor(1, 100);
     context.fill();
-  }
-};
-
-// Function to add random noise lines to the canvas
-const addNoiseLines = (context, count) => {
-  const width = context.canvas.width;
-  const height = context.canvas.height;
-  for (let i = 0; i < count; i++) {
-    const x1 = randomInt(0, width);
-    const y1 = randomInt(0, height);
-    const x2 = randomInt(0, width);
-    const y2 = randomInt(0, height);
-    context.beginPath();
-    context.moveTo(x1, y1);
-    context.lineTo(x2, y2);
-    context.strokeStyle = randomColor(1, 100);
-    context.stroke();
   }
 };
 
@@ -117,8 +102,8 @@ export function apply(ctx: Context, config: Config, bot: Bot) {
       context.translate(transX, transY);
       context.scale(scaleX, scaleY);
       context.rotate(deg * rotate);
-      addNoiseDots(context, config.width * config.height * 0.008); // Add 0.8% of total pixels as noise dots
-      addNoiseLines(context, config.width + config.height); // Add lines equal to the width + height of the canvas
+      const count = config.width * config.height * config.noise * 0.01;
+      addNoiseDots(context, count); 
 
       // fill the char
       context.fillText(targetChar, 0, 0);
