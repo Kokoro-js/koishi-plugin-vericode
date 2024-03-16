@@ -3,7 +3,7 @@ import {} from "koishi-plugin-skia-canvas";
 export const name = "vericode";
 
 export interface Config {
-  type: string;
+  type: any;
   codeLen: number;
   width: number;
   height: number;
