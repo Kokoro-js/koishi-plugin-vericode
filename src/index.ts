@@ -12,12 +12,20 @@ export interface Config {
 }
 
 export const Config: Schema<Config> = Schema.object({
-  type: Schema.union(["default", "number", "letter"]).default("default").description("验证码类型"),
+  type: Schema.union(["default", "number", "letter"])
+    .default("default")
+    .description("验证码类型"),
   codeLen: Schema.number().default(4).description("验证码字符数量"),
   width: Schema.number().default(200).description("验证码图片宽度"),
   height: Schema.number().default(40).description("验证码图片高度"),
-  noise: Schema.number().default(8).min(0).max(100).description("验证码干扰级别(最高100，0为禁用)"),
-  groups: Schema.array(Schema.string()).role('table').description("启用的群组ID"),
+  noise: Schema.number()
+    .default(8)
+    .min(0)
+    .max(100)
+    .description("验证码干扰级别(最高100，0为禁用)"),
+  groups: Schema.array(Schema.string())
+    .role("table")
+    .description("启用的群组ID"),
 }).description("VeriCode");
 
 // Function to add random noise dots to the canvas
@@ -35,10 +43,53 @@ const addNoiseDots = (context, count) => {
 };
 
 export function apply(ctx: Context, config: Config, bot: Bot) {
-  // ctx.command('vcode', { authority: 0 }).action(async ({ session }, server) => {
+  ctx.command("vcode", { authority: 4 }).action(async () => {
+    const canvas = ctx.canvas.createCanvas(config.width, config.height);
+    const { context, codeText } = drawImg(canvas);
+    const message = h("figure");
+    message.children.push(
+      h.image(context.canvas.toBuffer("image/png"), "image/png"),
+    );
+    message.children.push(h.text(`上图的验证码是 ${codeText}。`));
+    return message;
+  });
+
   ctx.on("guild-member-added", async (session) => {
     if (!config.groups.includes(session.guildId)) return;
     const canvas = ctx.canvas.createCanvas(config.width, config.height);
+    const { context, codeText } = drawImg(canvas);
+    const message = h("figure");
+    message.children.push(
+      h.image(context.canvas.toBuffer("image/png"), "image/png"),
+    );
+    message.children.push(h.text("欢迎入群，请在五分钟内回复图片里的验证码。"));
+    await session.send(message);
+    const code = await session.prompt(300000);
+    let muteTime = 15 * 24 * 60 * 60;
+    if (!code) {
+      session.send("未输入验证码，已取消验证。请联系群主或管理员进行手动验证");
+      await bot.internal.setGroupBanAsync(
+        session.guildId,
+        session.userId,
+        muteTime,
+      );
+      return;
+    }
+    const codeLower = code.toLowerCase();
+    if (code === codeText || codeLower === codeText.toLowerCase()) {
+      return `验证成功，欢迎入群`;
+    } else {
+      session.send("验证码错误，已取消验证。请联系群主或管理员进行手动验证");
+      await bot.internal.setGroupBanAsync(
+        session.guildId,
+        session.userId,
+        muteTime,
+      );
+      return;
+    }
+  });
+
+  function drawImg(canvas) {
     const context = canvas.getContext("2d");
     // define number and letters for generating the code
     // some of numbers and letters may look alike in sans-serif font
@@ -103,7 +154,7 @@ export function apply(ctx: Context, config: Config, bot: Bot) {
       context.scale(scaleX, scaleY);
       context.rotate(deg * rotate);
       const count = config.width * config.height * config.noise * 0.01;
-      addNoiseDots(context, count); 
+      addNoiseDots(context, count);
 
       // fill the char
       context.fillText(targetChar, 0, 0);
@@ -113,24 +164,9 @@ export function apply(ctx: Context, config: Config, bot: Bot) {
       // save the char into string
       codeText += targetChar;
     }
-    await session.send(`欢迎入群，请在 5 分钟内回答图中的验证码`)
-    session.send(h.image(context.canvas.toBuffer('image/png'), 'image/png'));
-    const code = await session.prompt(300000);
-    let muteTime = 15 * 24 * 60 * 60;
-    if (!code) {
-      session.send('未输入验证码，已取消验证。请联系群主或管理员进行手动验证');
-      await bot.internal.setGroupBanAsync(session.guildId, session.userId, muteTime)
-      return;
-    }
-    const codeLower = code.toLowerCase();
-    if (code === codeText || codeLower === codeText.toLowerCase()) {
-      return `验证成功，欢迎入群`
-    } else {
-      session.send('验证码错误，已取消验证。请联系群主或管理员进行手动验证');
-      await bot.internal.setGroupBanAsync(session.guildId, session.userId, muteTime)
-      return;
-    }
-  });
+
+    return { context, codeText };
+  }
 }
 
 /**
