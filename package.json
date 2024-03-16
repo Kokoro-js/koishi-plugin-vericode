@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-vericode",
-  "description": "提供入群验证码功能",
-  "version": "0.1.0",
+  "description": "入群验证码",
+  "version": "0.1.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
