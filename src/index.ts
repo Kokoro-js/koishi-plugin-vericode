@@ -11,6 +11,8 @@ export interface Config {
   groups: string[];
 }
 
+export const inject = ['canvas']
+
 export const Config: Schema<Config> = Schema.object({
   type: Schema.union(["default", "number", "letter"])
     .default("default")
