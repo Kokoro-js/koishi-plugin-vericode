@@ -13,6 +13,10 @@ export interface Config {
 
 export const inject = ['canvas']
 
+export const usage = `
+<h2>如遇使用问题可以前往QQ群: 957500313 讨论<h2>
+`
+
 export const Config: Schema<Config> = Schema.object({
   type: Schema.union(["default", "number", "letter"])
     .default("default")
