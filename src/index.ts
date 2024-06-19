@@ -1,5 +1,5 @@
 import { Bot, Context, h, Schema } from "koishi";
-import {} from "koishi-plugin-skia-canvas";
+import { } from "koishi-plugin-skia-canvas";
 export const name = "vericode";
 
 export interface Config {
@@ -9,6 +9,8 @@ export interface Config {
   height: number;
   noise: number;
   groups: string[];
+  groupPromptTime: number;
+  groupMuteTime: number;
 }
 
 export const inject = ['canvas']
@@ -17,22 +19,29 @@ export const usage = `
 <h2>如遇使用问题可以前往QQ群: 957500313 讨论<h2>
 `
 
-export const Config: Schema<Config> = Schema.object({
-  type: Schema.union(["default", "number", "letter"])
-    .default("default")
-    .description("验证码类型"),
-  codeLen: Schema.number().default(4).description("验证码字符数量"),
-  width: Schema.number().default(200).description("验证码图片宽度"),
-  height: Schema.number().default(40).description("验证码图片高度"),
-  noise: Schema.number()
-    .default(8)
-    .min(0)
-    .max(100)
-    .description("验证码干扰级别(最高100，0为禁用)"),
-  groups: Schema.array(Schema.string())
-    .role("table")
-    .description("启用的群组ID"),
-}).description("VeriCode");
+export const Config: Schema<Config> =
+  Schema.intersect([
+    Schema.object({
+      type: Schema.union(["default", "number", "letter"])
+        .default("default")
+        .description("验证码类型"),
+      codeLen: Schema.number().default(4).description("验证码字符数量"),
+      width: Schema.number().default(200).description("验证码图片宽度"),
+      height: Schema.number().default(40).description("验证码图片高度"),
+      noise: Schema.number()
+        .default(8)
+        .min(0)
+        .max(100)
+        .description("验证码干扰级别(最高100，0为禁用)")
+    }).description("验证码配置"),
+    Schema.object({
+      groupPromptTime: Schema.number().default(300000).description("验证等待时间 (ms)"),
+      groupMuteTime: Schema.number().default(1296000000).description("验证失败禁言时间 (ms), 默认 15 天"),
+      groups: Schema.array(Schema.string())
+        .role("table")
+        .description("启用的群组ID"),
+    }).description("群组配置")
+  ]).description("VeriCode")
 
 // Function to add random noise dots to the canvas
 const addNoiseDots = (context, count) => {
@@ -49,29 +58,34 @@ const addNoiseDots = (context, count) => {
 };
 
 export function apply(ctx: Context, config: Config, bot: Bot) {
-  ctx.command("vcode", { authority: 4 }).action(async () => {
-    const canvas = ctx.canvas.createCanvas(config.width, config.height);
-    const { context, codeText } = drawImg(canvas);
-    const message = h("figure");
-    message.children.push(
-      h.image(context.canvas.toBuffer("image/png"), "image/png"),
-    );
-    message.children.push(h.text(`上图的验证码是 ${codeText}。`));
-    return message;
-  });
+  ctx.command("vcode", { authority: 4 })
+    .action(async ({ session }) => {
+      const canvas = ctx.canvas.createCanvas(config.width, config.height);
+      const { context, codeText } = drawImg(canvas);
+      session.send(h.image(context.canvas.toBuffer("image/png"), "image/png"))
+      return `上图的验证码是 ${codeText}。`
+      // const message = h("figure");
+      // message.children.push(
+      //   h.image(context.canvas.toBuffer("image/png"), "image/png"),
+      // );
+      // message.children.push(h.text(`上图的验证码是 ${codeText}。`));
+      // return message;
+    });
 
   ctx.on("guild-member-added", async (session) => {
     if (!config.groups.includes(session.guildId)) return;
     const canvas = ctx.canvas.createCanvas(config.width, config.height);
     const { context, codeText } = drawImg(canvas);
-    const message = h("figure");
-    message.children.push(
-      h.image(context.canvas.toBuffer("image/png"), "image/png"),
-    );
-    message.children.push(h.text("欢迎入群，请在五分钟内回复图片里的验证码。"));
-    await session.send(message);
-    const code = await session.prompt(300000);
-    let muteTime = 15 * 24 * 60 * 60;
+    await session.send(h.image(context.canvas.toBuffer("image/png"), "image/png"))
+    // const message = h("figure");
+    // message.children.push(
+    //   h.image(context.canvas.toBuffer("image/png"), "image/png"),
+    // );
+    // message.children.push(h.text("欢迎入群，请在五分钟内回复图片里的验证码。"));
+    // await session.send(message);
+    await session.send("欢迎入群，请在五分钟内回复图片里的验证码。")
+    const code = await session.prompt(config.groupPromptTime);
+    let muteTime = config.groupMuteTime;
     if (!code) {
       session.send("未输入验证码，已取消验证。请联系群主或管理员进行手动验证");
       await bot.internal.setGroupBanAsync(
