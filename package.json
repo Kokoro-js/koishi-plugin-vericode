@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-vericode",
   "description": "入群验证码",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -17,5 +17,16 @@
   "peerDependencies": {
     "koishi": "^4.15.0",
     "koishi-plugin-skia-canvas": "^0.4.0"
+  },
+  "devDependencies": {
+    "koishi-plugin-skia-canvas": "^0.4.0",
+    "esbuild": "^0.21.5",
+    "koishi": "^4.17.8",
+    "tsc": "^2.0.4",
+    "typescript": "^5.6.0-dev.20240617",
+    "yakumo": "^1.0.0-beta.16",
+    "yakumo-esbuild": "^1.0.0-beta.6",
+    "yakumo-tsc": "1.0.0-beta.4",
+    "yml-register": "^1.2.5"
   }
 }
