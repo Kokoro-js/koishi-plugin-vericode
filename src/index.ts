@@ -9,7 +9,12 @@ export interface Config {
   height: number;
   noise: number;
   groups: string[];
+  groupWelcomeMessage: string;
+  timeOutMessage: string;
+  failMessage: string;
+  successMessage: string;
   groupPromptTime: number;
+  banOnFail: boolean;
   groupMuteTime: number;
 }
 
@@ -35,7 +40,12 @@ export const Config: Schema<Config> =
         .description("验证码干扰级别(最高100，0为禁用)")
     }).description("验证码配置"),
     Schema.object({
+      groupWelcomeMessage: Schema.string().default("欢迎入群，请在 五分钟 内回复图片里的验证码。").description("入群时提示信息"),
+      timeOutMessage: Schema.string().default("验证超时，已取消验证。请联系群主或管理员进行手动验证").description("验证超时提示信息"),
+      failMessage: Schema.string().default("验证码错误，已取消验证。请联系群主或管理员进行手动验证").description("验证失败提示信息"),
+      successMessage: Schema.string().default("验证成功，欢迎入群").description("验证成功提示信息"),
       groupPromptTime: Schema.number().default(300000).description("验证等待时间 (ms)"),
+      banOnFail: Schema.boolean().default(false).description("验证失败后是否踢出, 否为禁言"),
       groupMuteTime: Schema.number().default(1296000000).description("验证失败禁言时间 (ms), 默认 15 天"),
       groups: Schema.array(Schema.string())
         .role("table")
@@ -83,28 +93,38 @@ export function apply(ctx: Context, config: Config, bot: Bot) {
     // );
     // message.children.push(h.text("欢迎入群，请在五分钟内回复图片里的验证码。"));
     // await session.send(message);
-    await session.send("欢迎入群，请在五分钟内回复图片里的验证码。")
+    await session.send(config.groupWelcomeMessage)
     const code = await session.prompt(config.groupPromptTime);
     let muteTime = config.groupMuteTime;
     if (!code) {
-      session.send("未输入验证码，已取消验证。请联系群主或管理员进行手动验证");
-      await bot.internal.setGroupBanAsync(
-        session.guildId,
-        session.userId,
-        muteTime,
-      );
+      session.send(config.timeOutMessage);
+      if (config.banOnFail) {
+        await session.bot.kickGuildMember(session.guildId, session.userId)
+      } else {
+        await session.bot.muteGuildMember(session.guildId, session.userId, muteTime)
+      }
+      // await bot.internal.setGroupBanAsync(
+      //   session.guildId,
+      //   session.userId,
+      //   muteTime,
+      // );
       return;
     }
     const codeLower = code.toLowerCase();
     if (code === codeText || codeLower === codeText.toLowerCase()) {
-      return `验证成功，欢迎入群`;
+      return config.successMessage;
     } else {
-      session.send("验证码错误，已取消验证。请联系群主或管理员进行手动验证");
-      await bot.internal.setGroupBanAsync(
-        session.guildId,
-        session.userId,
-        muteTime,
-      );
+      session.send(config.failMessage);
+      if (config.banOnFail) {
+        await session.bot.kickGuildMember(session.guildId, session.userId)
+      } else {
+        await session.bot.muteGuildMember(session.guildId, session.userId, muteTime)
+      }
+      // await bot.internal.setGroupBanAsync(
+      //   session.guildId,
+      //   session.userId,
+      //   muteTime,
+      // );
       return;
     }
   });
