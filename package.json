@@ -14,6 +14,14 @@
     "koishi",
     "plugin"
   ],
+  "author": "Itz_Dr_Li",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kokoro-js/koishi-plugin-vericode.git"
+  },
+  "scripts": {
+    "build": "yakumo build"
+  },
   "peerDependencies": {
     "koishi": "^4.15.0",
     "koishi-plugin-skia-canvas": "^0.4.0"
