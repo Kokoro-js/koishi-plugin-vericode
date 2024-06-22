@@ -82,7 +82,9 @@ export function apply(ctx: Context, config: Config, bot: Bot) {
       // return message;
     });
 
-  ctx.on("guild-member-added", async (session) => {
+  // ctx.on("guild-member-added", async (session) => {
+  ctx.command("popo")
+    .action(async ({ session }) => {
     if (!config.groups.includes(session.guildId)) return;
     const canvas = ctx.canvas.createCanvas(config.width, config.height);
     const { context, codeText } = drawImg(canvas);
@@ -97,7 +99,7 @@ export function apply(ctx: Context, config: Config, bot: Bot) {
     const code = await session.prompt(config.groupPromptTime);
     let muteTime = config.groupMuteTime;
     if (!code) {
-      session.send(config.timeOutMessage);
+      await session.send(config.timeOutMessage);
       if (config.banOnFail) {
         await session.bot.kickGuildMember(session.guildId, session.userId)
       } else {
@@ -114,7 +116,7 @@ export function apply(ctx: Context, config: Config, bot: Bot) {
     if (code === codeText || codeLower === codeText.toLowerCase()) {
       return config.successMessage;
     } else {
-      session.send(config.failMessage);
+      await session.send(config.failMessage);
       if (config.banOnFail) {
         await session.bot.kickGuildMember(session.guildId, session.userId)
       } else {
