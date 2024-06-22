@@ -82,9 +82,9 @@ export function apply(ctx: Context, config: Config, bot: Bot) {
       // return message;
     });
 
-  // ctx.on("guild-member-added", async (session) => {
-  ctx.command("popo")
-    .action(async ({ session }) => {
+  ctx.on("guild-member-added", async (session) => {
+  // ctx.command("popo")
+    // .action(async ({ session }) => {
     if (!config.groups.includes(session.guildId)) return;
     const canvas = ctx.canvas.createCanvas(config.width, config.height);
     const { context, codeText } = drawImg(canvas);
