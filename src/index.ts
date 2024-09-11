@@ -23,6 +23,7 @@ export const inject = ['canvas']
 
 export const usage = `
 <h2>如遇使用问题可以前往QQ群: 957500313 讨论<h2>
+入群提示信息 (groupWelcomeMessage) 中可使用 <@> 进行 @
 `
 
 export const Config: Schema<Config> =
@@ -41,7 +42,7 @@ export const Config: Schema<Config> =
         .description("验证码干扰级别(最高100，0为禁用)")
     }).description("验证码配置"),
     Schema.object({
-      groupWelcomeMessage: Schema.string().default("欢迎入群，请在 五分钟 内回复图片里的验证码。").description("入群时提示信息"),
+      groupWelcomeMessage: Schema.string().default("<@> 欢迎入群，请在 五分钟 内回复图片里的验证码。").description("入群时提示信息"),
       timeOutMessage: Schema.string().default("验证超时，已取消验证。请联系群主或管理员进行手动验证").description("验证超时提示信息"),
       failMessage: Schema.string().default("验证码错误，已取消验证。请联系群主或管理员进行手动验证").description("验证失败提示信息"),
       successMessage: Schema.string().default("验证成功，欢迎入群").description("验证成功提示信息"),
@@ -56,20 +57,6 @@ export const Config: Schema<Config> =
       debug: Schema.boolean().default(false),
     }).description("其他")
   ]).description("VeriCode")
-
-// Function to add random noise dots to the canvas
-const addNoiseDots = (context, count) => {
-  const width = context.canvas.width;
-  const height = context.canvas.height;
-  for (let i = 0; i < count; i++) {
-    const x = randomInt(0, width);
-    const y = randomInt(0, height);
-    context.beginPath();
-    context.arc(x, y, 1, 0, 2 * Math.PI);
-    context.fillStyle = randomColor(1, 100);
-    context.fill();
-  }
-};
 
 export function apply(ctx: Context, config: Config, bot: Bot) {
 
@@ -91,7 +78,11 @@ export function apply(ctx: Context, config: Config, bot: Bot) {
     const { context, codeText } = drawImg(canvas);
     await session.send(h.image(context.canvas.toBuffer("image/png"), "image/png"))
 
-    await session.send(config.groupWelcomeMessage)
+    let welcomeMsg = config.groupWelcomeMessage
+    if (welcomeMsg.includes("<@>")) {
+      welcomeMsg = config.groupWelcomeMessage.replace("<@>", `<at id="${session.userId}" />`)
+    } 
+    await session.send(welcomeMsg)
     const code = await session.prompt(config.groupPromptTime);
     let muteTime = config.groupMuteTime;
     if (!code) {
