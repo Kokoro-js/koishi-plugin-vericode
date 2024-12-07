@@ -1,4 +1,4 @@
-import { Bot, Context, h, Schema } from "koishi";
+import { Context, h, Schema } from "koishi";
 import { } from "koishi-plugin-skia-canvas";
 export const name = "vericode";
 
@@ -12,8 +12,10 @@ export interface Config {
   groupWelcomeMessage: string;
   timeOutMessage: string;
   failMessage: string;
+  remainChancesMessage: string;
   successMessage: string;
   groupPromptTime: number;
+  chances: number;
   actionOnFail: any;
   groupMuteTime: number;
   debug: boolean;
@@ -23,7 +25,7 @@ export const inject = ['canvas']
 
 export const usage = `
 <h2>如遇使用问题可以前往QQ群: 957500313 讨论<h2>
-入群提示信息 (groupWelcomeMessage) 中可使用 <@> 进行 @
+所有提示信息中均可使用 <@> 为占位符对目标用户进行 @
 `
 
 export const Config: Schema<Config> =
@@ -46,7 +48,9 @@ export const Config: Schema<Config> =
       timeOutMessage: Schema.string().default("验证超时，已取消验证。请联系群主或管理员进行手动验证").description("验证超时提示信息"),
       failMessage: Schema.string().default("验证码错误，已取消验证。请联系群主或管理员进行手动验证").description("验证失败提示信息"),
       successMessage: Schema.string().default("验证成功，欢迎入群").description("验证成功提示信息"),
+      remainChancesMessage: Schema.string().default("验证码错误，剩余机会: ").description("验证码错误提示信息"),
       groupPromptTime: Schema.number().default(300000).description("验证等待时间 (ms)"),
+      chances: Schema.number().default(2).description("验证机会数量"),
       actionOnFail: Schema.union(["mute", "ban", "nothing"]).default("mute").description("验证失败后的操作, 默认禁言"),
       groupMuteTime: Schema.number().default(1296000000).description("验证失败禁言时间 (ms), 默认 15 天"),
       groups: Schema.array(Schema.string())
@@ -58,7 +62,7 @@ export const Config: Schema<Config> =
     }).description("其他")
   ]).description("VeriCode")
 
-export function apply(ctx: Context, config: Config, bot: Bot) {
+export function apply(ctx: Context, config: Config) {
 
   if (config.debug) {
     ctx.command("vcode", { authority: 4 })
@@ -79,47 +83,58 @@ export function apply(ctx: Context, config: Config, bot: Bot) {
     await session.send(h.image(context.canvas.toBuffer("image/png"), "image/png"))
 
     let welcomeMsg = config.groupWelcomeMessage
-    if (welcomeMsg.includes("<@>")) {
-      welcomeMsg = config.groupWelcomeMessage.replace("<@>", `<at id="${session.userId}" />`)
-    } 
+    if (welcomeMsg.includes("<@>")) welcomeMsg = config.groupWelcomeMessage.replace("<@>", `<at id="${session.userId}" />`)
     await session.send(welcomeMsg)
-    const code = await session.prompt(config.groupPromptTime);
-    let muteTime = config.groupMuteTime;
-    if (!code) {
-      await session.send(config.timeOutMessage);
-      if (config.actionOnFail === "ban") {
-        await session.bot.kickGuildMember(session.guildId, session.userId)
-      } else if (config.actionOnFail === "mute") {
-        await session.bot.muteGuildMember(session.guildId, session.userId, muteTime)
-      } else {
-        return
+    for (let i = config.chances; i >= 0; i--) {
+      const code = await session.prompt(config.groupPromptTime);
+      let muteTime = config.groupMuteTime;
+      if (!code) {
+        if (config.timeOutMessage.includes("<@>")) config.timeOutMessage = config.timeOutMessage.replace("<@>", `<at id="${session.userId}" />`)
+        await session.send(config.timeOutMessage);
+        switch (config.actionOnFail) {
+          case "ban":
+            await session.bot.kickGuildMember(session.guildId, session.userId);
+            break;
+          case "mute":
+            await session.bot.muteGuildMember(session.guildId, session.userId, muteTime);
+            break;
+          default:
+            return;
+        }
+        return;
       }
-      return;
-    }
-    const codeLower = code.toLowerCase();
-    if (code === codeText || codeLower === codeText.toLowerCase()) {
-      await session.send(config.successMessage);
-      return
-    } else {
-      await session.send(config.failMessage);
-      if (config.actionOnFail === "ban") {
-        await session.bot.kickGuildMember(session.guildId, session.userId)
-      } else if (config.actionOnFail === "mute") {
-        await session.bot.muteGuildMember(session.guildId, session.userId, muteTime)
-      } else {
+      const codeLower = code.toLowerCase();
+      if (code === codeText || codeLower === codeText.toLowerCase()) {
+        if (config.successMessage.includes("<@>")) config.successMessage = config.successMessage.replace("<@>", `<at id="${session.userId}" />`)
+        await session.send(config.successMessage);
         return
+      } else {
+        if (i > 0) {
+          if (config.remainChancesMessage.includes("<@>")) config.remainChancesMessage = config.remainChancesMessage.replace("<@>", `<at id="${session.userId}" />`)
+          await session.send(config.remainChancesMessage + i);
+        } else if (i === 0) {
+          await session.send(config.failMessage);
+          switch (config.actionOnFail) {
+            case "ban":
+              await session.bot.kickGuildMember(session.guildId, session.userId);
+              break;
+            case "mute":
+              await session.bot.muteGuildMember(session.guildId, session.userId, muteTime);
+              break;
+            default:
+              return;
+          }
+          return;
+        }
       }
-      return;
     }
   });
 
   function drawImg(canvas) {
     const context = canvas.getContext("2d");
 
-    // Define numbers and letters for generating the code
-    // Exclude characters that look alike
-    const numberArr = "23456789".split(""); // Exclude 0, 1
-    const letterArr = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ".split(""); // Exclude i, l, o, I, L, O, Q, S
+    const numberArr = "23456789".split(""); 
+    const letterArr = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ".split("");
 
     let codeText = "";
     let targetArr = [];
